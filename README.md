@@ -4,14 +4,14 @@ Full-stack product: a support-ticket triage multi-agent platform. New domain, Bo
 
 Companion product code for *Production AI Products* (Book 3 of the "Production AI Agent Engineering" series). Every chapter has a matching git tag here, real, tested, runnable code, not illustrative snippets.
 
-**Status: Phase 2 scaffold.** Directory structure, dependency manifest, CI, and the five-tier testing taxonomy are wired and passing. Real product logic starts in Phase 4.
+**Status: chapters 18+ in progress.** Real product code starts with chapter 18 (`backend/src/triage_app/tickets.py`, `tools.py`, `single_agent.py`).
 
 ## Repository shape
 
 ```
 backend/src/triage_app/   application code
 frontend/                    React frontend
-workers/                     Arq background workers
+workers/                     SAQ background workers (Postgres-backed, same choice as reorder-app and pkgintel-app)
 tests/{unit,orchestration,integration,contract,evals}/
 config/
 docs/diagrams/

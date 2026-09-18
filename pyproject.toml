@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "anthropic>=1.5.0",
-    "saq>=0.26.4",
+    "saq[postgres]>=0.26.4",
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
     "langgraph>=1.2.11",
@@ -17,9 +17,13 @@ dependencies = [
     "pydantic>=2.13.5",
     "python-dotenv>=1.2.3",
     "pyyaml>=6.0.3",
+    "reliable-agents-labs",
     "tenacity>=9.1.4",
     "uvicorn[standard]>=0.53.0",
 ]
+
+[tool.uv.sources]
+reliable-agents-labs = { git = "https://github.com/Sebuliba-Adrian/reliable-agents-labs.git" }
 
 [tool.uv]
 package = true
