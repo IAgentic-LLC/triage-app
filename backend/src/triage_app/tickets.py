@@ -88,10 +88,30 @@ TICKET_SECURITY = Ticket(
     body="I received a login alert from a device and location I don't recognize.",
 )
 
+# Chapter 20: a real, honest routing failure, not a hypothetical. The
+# ticket source tagged this "technical" (its subject line mentions the
+# app), but the actual request is a billing question. This is the
+# fixture the Agent Handoff Protocol exists to handle: a specialist
+# recognizing its own domain doesn't match, and saying so structurally
+# instead of guessing at a technical-sounding answer to a billing
+# question.
+TICKET_MISCATEGORIZED = Ticket(
+    ticket_id="TCK-1006",
+    customer_id="cust-88",
+    category="technical",
+    subject="App shows two charges for one subscription",
+    body=(
+        "I noticed two charges on my card this month for the same "
+        "subscription inside the app. Can you explain why and refund "
+        "the extra one?"
+    ),
+)
+
 SEED_TICKETS: list[Ticket] = [
     TICKET_BILLING,
     TICKET_TECHNICAL,
     TICKET_TECHNICAL_INJECTED,
     TICKET_TECHNICAL_INJECTED_STRONGER,
     TICKET_SECURITY,
+    TICKET_MISCATEGORIZED,
 ]

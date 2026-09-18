@@ -9,72 +9,92 @@ capability in the first place.
 from reliable_agents_labs.agent_loop import run_tool_loop
 from reliable_agents_labs.models import ModelClient, build_model_client
 
+from triage_app.handoff import HANDOFF_TOOL, request_handoff
 from triage_app.tickets import Ticket
 from triage_app.tools import ALL_TOOL_FNS, BILLING_TOOLS, SECURITY_TOOLS, TECHNICAL_TOOLS
 
 
 def _tool_fns_for(tools: list[dict]) -> dict:
     names = {t["function"]["name"] for t in tools}
-    return {name: fn for name, fn in ALL_TOOL_FNS.items() if name in names}
+    fns = {name: fn for name, fn in ALL_TOOL_FNS.items() if name in names}
+    if "request_handoff" in names:
+        fns["request_handoff"] = request_handoff
+    return fns
+
+
+def _question_for(ticket: Ticket, context_note: str | None) -> str:
+    question = f"Subject: {ticket.subject}\n\n{ticket.body}"
+    if context_note:
+        question += f"\n\n[Routing note from another specialist: {context_note}]"
+    return question
 
 
 BILLING_SYSTEM_PROMPT = (
     "You are a billing support specialist. You only handle billing questions: "
     "invoices, charges, and refunds. If a ticket is not actually about billing, "
-    "say so plainly instead of guessing at an unrelated resolution."
+    "call request_handoff with the category that actually fits, instead of "
+    "guessing at an unrelated resolution."
 )
 
 TECHNICAL_SYSTEM_PROMPT = (
     "You are a technical support specialist. You only handle technical issues: "
     "crashes, errors, and service problems. If a ticket is not actually a "
-    "technical issue, say so plainly instead of guessing at an unrelated "
-    "resolution. You have no ability to issue refunds, escalate to security, "
-    "or take any action outside diagnosing and fixing technical problems."
+    "technical issue, call request_handoff with the category that actually "
+    "fits, instead of guessing at an unrelated resolution. You have no ability "
+    "to issue refunds, escalate to security, or take any action outside "
+    "diagnosing and fixing technical problems."
 )
 
 SECURITY_SYSTEM_PROMPT = (
     "You are a security specialist. You only handle suspected security "
     "incidents: unauthorized access, suspicious logins, compromised accounts. "
-    "You have no ability to issue refunds or resolve technical issues; your "
-    "only actions are escalating to the on-call responder and freezing an "
-    "account pending investigation."
+    "If a ticket is not actually a security incident, call request_handoff "
+    "with the category that actually fits. You have no ability to issue "
+    "refunds or resolve technical issues; your only actions are escalating to "
+    "the on-call responder and freezing an account pending investigation."
 )
 
 
-async def ask_billing_specialist(ticket: Ticket, client: ModelClient | None = None) -> str:
+async def ask_billing_specialist(
+    ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
+) -> str:
     if client is None:
         client = build_model_client("answer_model")
-    question = f"Subject: {ticket.subject}\n\n{ticket.body}"
+    tools = BILLING_TOOLS + [HANDOFF_TOOL]
     return await run_tool_loop(
-        question,
+        _question_for(ticket, context_note),
         client,
-        tools=BILLING_TOOLS,
-        tool_fns=_tool_fns_for(BILLING_TOOLS),
+        tools=tools,
+        tool_fns=_tool_fns_for(tools),
         system=BILLING_SYSTEM_PROMPT,
     )
 
 
-async def ask_technical_specialist(ticket: Ticket, client: ModelClient | None = None) -> str:
+async def ask_technical_specialist(
+    ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
+) -> str:
     if client is None:
         client = build_model_client("answer_model")
-    question = f"Subject: {ticket.subject}\n\n{ticket.body}"
+    tools = TECHNICAL_TOOLS + [HANDOFF_TOOL]
     return await run_tool_loop(
-        question,
+        _question_for(ticket, context_note),
         client,
-        tools=TECHNICAL_TOOLS,
-        tool_fns=_tool_fns_for(TECHNICAL_TOOLS),
+        tools=tools,
+        tool_fns=_tool_fns_for(tools),
         system=TECHNICAL_SYSTEM_PROMPT,
     )
 
 
-async def ask_security_specialist(ticket: Ticket, client: ModelClient | None = None) -> str:
+async def ask_security_specialist(
+    ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
+) -> str:
     if client is None:
         client = build_model_client("answer_model")
-    question = f"Subject: {ticket.subject}\n\n{ticket.body}"
+    tools = SECURITY_TOOLS + [HANDOFF_TOOL]
     return await run_tool_loop(
-        question,
+        _question_for(ticket, context_note),
         client,
-        tools=SECURITY_TOOLS,
-        tool_fns=_tool_fns_for(SECURITY_TOOLS),
+        tools=tools,
+        tool_fns=_tool_fns_for(tools),
         system=SECURITY_SYSTEM_PROMPT,
     )
