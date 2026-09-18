@@ -4,7 +4,7 @@ Full-stack product: a support-ticket triage multi-agent platform. New domain, Bo
 
 Companion product code for *Production AI Products* (Book 3 of the "Production AI Agent Engineering" series). Every chapter has a matching git tag here, real, tested, runnable code, not illustrative snippets.
 
-**Status: chapters 18+ in progress.** Real product code starts with chapter 18 (`backend/src/triage_app/tickets.py`, `tools.py`, `single_agent.py`).
+**Status: chapters 18-21 done.** A monolithic baseline (ch18), three scoped specialists (ch19), a real handoff protocol (ch20), and Postgres-backed persistence for tickets and their routing history (ch21, `compose.yaml` port 5435).
 
 ## Repository shape
 

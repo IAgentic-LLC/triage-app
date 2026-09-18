@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: triage_app
+      POSTGRES_PASSWORD: triage_app
+      POSTGRES_DB: triage_app
+    ports:
+      # 5435: reorder-app already uses 5433, pkgintel-app 5434, all
+      # three can run at once on this machine without colliding.
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U triage_app"]
+      interval: 2s
+      timeout: 5s
+      retries: 10

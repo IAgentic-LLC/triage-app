@@ -5,6 +5,30 @@ of the installed package.
 """
 
 from reliable_agents_labs.models import ModelResult
+from triage_app.store import TicketHistory
+from triage_app.supervisor import TicketResolution
+from triage_app.tickets import Ticket
+
+
+class InMemoryTicketStore:
+    """Chapter 21: same reasoning as pkgintel-app's own `InMemoryAnswerCache`,
+    a plain dict standing in for `PostgresTicketStore`, no real Postgres
+    connection, for the persistence-wiring logic `intake.py` depends on.
+    """
+
+    def __init__(self) -> None:
+        self._history: dict[str, TicketHistory] = {}
+
+    async def save_resolution(self, ticket: Ticket, resolution: TicketResolution) -> None:
+        self._history[ticket.ticket_id] = TicketHistory(
+            ticket_id=ticket.ticket_id,
+            handled_by=resolution.handled_by,
+            answer=resolution.answer,
+            handoffs=list(resolution.handoffs),
+        )
+
+    async def get_ticket_history(self, ticket_id: str) -> TicketHistory | None:
+        return self._history.get(ticket_id)
 
 
 class ScriptedModelClient:
