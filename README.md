@@ -4,7 +4,9 @@ Full-stack product: a support-ticket triage multi-agent platform. New domain, Bo
 
 Companion product code for *Production AI Products* (Book 3 of the "Production AI Agent Engineering" series). Every chapter has a matching git tag here, real, tested, runnable code, not illustrative snippets.
 
-**Status: chapters 18-22 done.** A monolithic baseline (ch18), three scoped specialists (ch19), a real handoff protocol (ch20), Postgres-backed persistence for tickets and their routing history (ch21, `compose.yaml` port 5435), and a real FastAPI + React frontend behind Auth0 JWT verification (ch22, API on port 8020, frontend on port 5175). One real dashboard step remains before the contract tier and a live browser login work end to end: granting the pre-provisioned "triage-app (Test Application)" M2M client Client Access to the `triage-app` Auth0 API resource, and registering a new SPA client for the frontend's own `.env`.
+**Status: all 36 chapters complete**, book-wide (this product's own tags: `ch18-end` through `ch35-end`). A monolithic baseline (ch18), three scoped specialists (ch19), a real Agent Handoff Protocol (ch20), Postgres-backed persistence for tickets and routing history (ch21), a real FastAPI + React frontend behind Auth0 JWT verification (ch22), a real threat model (ch25), a durable audit trail (ch27), risk-tiered release gates (ch28), data residency and retention (ch29), graceful degradation on a real model outage (ch34), and per-ticket cost tracking (ch35). 46 tests passing across all five tiers where applicable.
+
+**Two real, disclosed gaps, still open as of the book's own closing chapter**: the pre-provisioned "triage-app (Test Application)" M2M client still has no Client Access grant on the `triage-app` Auth0 API resource, and the frontend's own `.env` (`VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID`) has never had a real SPA client registered, confirmed live in the book's closing chapter: clicking "Sign in" fails with `ERR_NAME_NOT_RESOLVED`. Both require a real Auth0 dashboard action, the account owner's own to make.
 
 ## Repository shape
 
