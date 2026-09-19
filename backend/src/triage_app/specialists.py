@@ -4,14 +4,32 @@ only thing that changes between them is which tools each one is even
 given. That's the whole design: least-privilege isn't a prompt telling
 an agent what not to do, it's a tool list that never included the
 capability in the first place.
+
+Chapter 34: a real, live-found gap. Book 2's own chapter 27 already
+built `RetryingModelClient`, retry-with-backoff for exactly the
+errors a real provider SDK calls transient, a dropped connection, a
+timeout, a provider-side 5xx, a rate limit. No product in this book,
+across every chapter since 18, ever actually used it; every real
+model call here has run against the bare, unwrapped client this whole
+time. Wrapping the real client, only when one wasn't already supplied
+(a test's own scripted double should never be silently retried),
+closes that gap with code this book already had, not new code
+written for this chapter.
 """
 
 from reliable_agents_labs.agent_loop import run_tool_loop
 from reliable_agents_labs.models import ModelClient, build_model_client
+from reliable_agents_labs.reliability import RetryingModelClient
 
 from triage_app.handoff import HANDOFF_TOOL, request_handoff
 from triage_app.tickets import Ticket
 from triage_app.tools import ALL_TOOL_FNS, BILLING_TOOLS, SECURITY_TOOLS, TECHNICAL_TOOLS
+
+
+def _real_client_or(client: ModelClient | None) -> ModelClient:
+    if client is not None:
+        return client
+    return RetryingModelClient(build_model_client("answer_model"))
 
 
 def _tool_fns_for(tools: list[dict]) -> dict:
@@ -69,8 +87,7 @@ SECURITY_SYSTEM_PROMPT = (
 async def ask_billing_specialist(
     ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
 ) -> str:
-    if client is None:
-        client = build_model_client("answer_model")
+    client = _real_client_or(client)
     tools = BILLING_TOOLS + [HANDOFF_TOOL]
     return await run_tool_loop(
         _question_for(ticket, context_note),
@@ -84,8 +101,7 @@ async def ask_billing_specialist(
 async def ask_technical_specialist(
     ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
 ) -> str:
-    if client is None:
-        client = build_model_client("answer_model")
+    client = _real_client_or(client)
     tools = TECHNICAL_TOOLS + [HANDOFF_TOOL]
     return await run_tool_loop(
         _question_for(ticket, context_note),
@@ -99,8 +115,7 @@ async def ask_technical_specialist(
 async def ask_security_specialist(
     ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
 ) -> str:
-    if client is None:
-        client = build_model_client("answer_model")
+    client = _real_client_or(client)
     tools = SECURITY_TOOLS + [HANDOFF_TOOL]
     return await run_tool_loop(
         _question_for(ticket, context_note),

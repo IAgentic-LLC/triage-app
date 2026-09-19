@@ -19,6 +19,13 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from openai import (
+    APIConnectionError,
+    APIError,
+    APITimeoutError,
+    InternalServerError,
+    RateLimitError,
+)
 from pydantic import BaseModel
 from reliable_agents_labs.agent_loop import ToolLoopDidNotConverge
 from reliable_agents_labs.models import ModelClient
@@ -89,6 +96,44 @@ async def handle_routing_failed(request: Request, exc: RoutingFailedError) -> JS
         status_code=502,
         content=problem.model_dump(),
         media_type="application/problem+json",
+    )
+
+
+# Chapter 34: `RetryingModelClient` already retries exactly these four
+# real categories the openai SDK itself calls transient, a dropped
+# connection, a timeout, a provider-side 5xx, a rate limit, with
+# backoff, `reraise=True` on the last attempt. What reaches here after
+# retries are exhausted is a real, sustained outage, not a blip: a 503
+# is the honest, correct answer, its own detail message the one place
+# in this product deliberately written for a human to read directly.
+# A different, real `APIError` subtype (a bad request, a real
+# authentication failure) was never retried in the first place and
+# means something has gone permanently wrong, not that the model is
+# temporarily down; that case is re-raised, not disguised as the same
+# thing.
+_TRANSIENT_ERROR_TYPES = (APIConnectionError, APITimeoutError, InternalServerError, RateLimitError)
+
+
+@app.exception_handler(APIError)
+async def handle_model_unavailable(request: Request, exc: APIError) -> JSONResponse:
+    if not isinstance(exc, _TRANSIENT_ERROR_TYPES):
+        raise exc
+
+    problem = ProblemDetail(
+        type="https://triage-app.dev/problems/model-unavailable",
+        title="Model unavailable",
+        status=503,
+        detail=(
+            "The support model is temporarily unavailable after real retries. "
+            "Your ticket was not lost; please try again shortly, or a human "
+            "will follow up if this keeps happening."
+        ),
+    )
+    return JSONResponse(
+        status_code=503,
+        content=problem.model_dump(),
+        media_type="application/problem+json",
+        headers={"Retry-After": "30"},
     )
 
 
