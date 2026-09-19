@@ -83,9 +83,14 @@ this chapter; belongs with chapter 31's own CI/CD work.
 `triage-app` API resource, chapter 22), `scripts/run_dev_server.py`.
 
 **Threat**: OWASP T3, Privilege Compromise. Chapter 22's own real,
-live example: I created a new Auth0 API resource for this API, but deliberately held off granting the pre-provisioned M2M test client access to it. A live access-grant change on a real tenant deserves its own deliberate decision, not something to wave through in the middle of unrelated routing work, and I never went back to finish it before this book went to print. That pause is this threat
-category's own mitigation in action, not a workaround for it: the
-right response to a privilege-escalation-shaped action is a human
+live example: I created a new Auth0 API resource for this API, but
+deliberately held off granting the pre-provisioned M2M test client
+access to it. A live access-grant change on a real tenant deserves
+its own deliberate decision, not something to wave through in the
+middle of unrelated routing work, and I never went back to finish it
+before this book went to print. That pause is this threat category's
+own mitigation in action, not a workaround for it: the right response
+to a privilege-escalation-shaped action is a deliberate human
 checkpoint, not a faster script.
 
 **Current mitigation**: real secrets (`GEMINI_API_KEY`,
