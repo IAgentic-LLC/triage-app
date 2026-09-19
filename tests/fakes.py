@@ -28,10 +28,15 @@ class InMemoryTicketStore:
             answer=resolution.answer,
             handoffs=list(resolution.handoffs),
             actions=list(actions or []),
+            cost_usd=resolution.cost_usd,
         )
 
     async def get_ticket_history(self, ticket_id: str) -> TicketHistory | None:
         return self._history.get(ticket_id)
+
+    async def total_usage(self) -> tuple[float, int]:
+        records = list(self._history.values())
+        return (sum(r.cost_usd for r in records), len(records))
 
 
 class ScriptedModelClient:

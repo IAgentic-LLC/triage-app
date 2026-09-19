@@ -70,6 +70,7 @@ class ResolutionResponse(BaseModel):
     answer: str
     handoffs: list[HandoffRecord]
     actions: list[dict] = []
+    cost_usd: float = 0.0
 
 
 class ProblemDetail(BaseModel):
@@ -186,6 +187,7 @@ async def submit_ticket(
         answer=resolution.answer,
         handoffs=resolution.handoffs,
         actions=list(ACTIONS_TAKEN),
+        cost_usd=resolution.cost_usd,
     )
 
 
@@ -204,4 +206,25 @@ async def get_ticket(
         answer=history.answer,
         handoffs=history.handoffs,
         actions=history.actions,
+        cost_usd=history.cost_usd,
     )
+
+
+class UsageResponse(BaseModel):
+    total_cost_usd: float
+    ticket_count: int
+
+
+@app.get("/v1/usage", response_model=UsageResponse)
+async def get_usage(
+    store: TicketStore = Depends(get_ticket_store),
+    principal: Principal = Depends(verify_token),
+) -> UsageResponse:
+    """Chapter 35: the same shape as `pkgintel-app`'s own `/v1/usage`
+    (chapter 15) and `reorder-app`'s new one this chapter also adds,
+    real durable cost visibility for this product instead of the
+    in-memory-only total the other two settle for where a durable
+    per-tenant ledger doesn't already exist here.
+    """
+    total_cost_usd, ticket_count = await store.total_usage()
+    return UsageResponse(total_cost_usd=total_cost_usd, ticket_count=ticket_count)

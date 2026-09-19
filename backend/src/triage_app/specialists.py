@@ -15,9 +15,21 @@ time. Wrapping the real client, only when one wasn't already supplied
 (a test's own scripted double should never be silently retried),
 closes that gap with code this book already had, not new code
 written for this chapter.
+
+Chapter 35: the same shape of gap, for cost instead of retries.
+`run_tool_loop`'s own `on_result` hook (Book 2's chapter 31) and
+`reliable_agents_labs.cost.TaskCostTracker`, purpose-built to sit on
+that exact hook, have both existed since Book 2. Nothing in this
+product ever passed one in; a real, multi-turn specialist call's own
+dollar cost has never once been visible anywhere. `cost_tracker` is
+optional and defaults to `None`, the same "no behavior change unless a
+caller actually wants this" shape chapter 34's `client` parameter
+already used, so every existing test that never passes one keeps
+working unchanged.
 """
 
 from reliable_agents_labs.agent_loop import run_tool_loop
+from reliable_agents_labs.cost import TaskCostTracker
 from reliable_agents_labs.models import ModelClient, build_model_client
 from reliable_agents_labs.reliability import RetryingModelClient
 
@@ -85,7 +97,10 @@ SECURITY_SYSTEM_PROMPT = (
 
 
 async def ask_billing_specialist(
-    ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
+    ticket: Ticket,
+    client: ModelClient | None = None,
+    context_note: str | None = None,
+    cost_tracker: TaskCostTracker | None = None,
 ) -> str:
     client = _real_client_or(client)
     tools = BILLING_TOOLS + [HANDOFF_TOOL]
@@ -95,11 +110,15 @@ async def ask_billing_specialist(
         tools=tools,
         tool_fns=_tool_fns_for(tools),
         system=BILLING_SYSTEM_PROMPT,
+        on_result=cost_tracker.track if cost_tracker is not None else None,
     )
 
 
 async def ask_technical_specialist(
-    ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
+    ticket: Ticket,
+    client: ModelClient | None = None,
+    context_note: str | None = None,
+    cost_tracker: TaskCostTracker | None = None,
 ) -> str:
     client = _real_client_or(client)
     tools = TECHNICAL_TOOLS + [HANDOFF_TOOL]
@@ -109,11 +128,15 @@ async def ask_technical_specialist(
         tools=tools,
         tool_fns=_tool_fns_for(tools),
         system=TECHNICAL_SYSTEM_PROMPT,
+        on_result=cost_tracker.track if cost_tracker is not None else None,
     )
 
 
 async def ask_security_specialist(
-    ticket: Ticket, client: ModelClient | None = None, context_note: str | None = None
+    ticket: Ticket,
+    client: ModelClient | None = None,
+    context_note: str | None = None,
+    cost_tracker: TaskCostTracker | None = None,
 ) -> str:
     client = _real_client_or(client)
     tools = SECURITY_TOOLS + [HANDOFF_TOOL]
@@ -123,4 +146,5 @@ async def ask_security_specialist(
         tools=tools,
         tool_fns=_tool_fns_for(tools),
         system=SECURITY_SYSTEM_PROMPT,
+        on_result=cost_tracker.track if cost_tracker is not None else None,
     )

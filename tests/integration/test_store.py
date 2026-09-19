@@ -73,6 +73,54 @@ async def test_a_resolution_and_its_handoffs_survive_a_fresh_connection():
             await write_conn.commit()
 
 
+async def test_real_cost_survives_a_fresh_connection_and_an_update():
+    """Chapter 35: `cost_usd` needs to survive the exact same
+    fresh-connection durability proof as every other field here, plus
+    the `ON CONFLICT ... DO UPDATE` path a second real resolution for
+    the same ticket already exercises for `answer`/`handled_by`.
+    """
+    ticket = Ticket(
+        ticket_id="itest-ticket-003",
+        customer_id="itest-cust-3",
+        category="billing",
+        subject="itest subject",
+        body="itest body",
+    )
+    async with await psycopg.AsyncConnection.connect(os.environ["DATABASE_URL"]) as write_conn:
+        await run_migrations(write_conn, _MIGRATIONS_DIR)
+        store = PostgresTicketStore(write_conn)
+        try:
+            first = TicketResolution(
+                answer="first pass", handled_by="billing", handoffs=[], cost_usd=0.00002625
+            )
+            await store.save_resolution(ticket, first)
+
+            async with await psycopg.AsyncConnection.connect(
+                os.environ["DATABASE_URL"]
+            ) as read_conn:
+                read_store = PostgresTicketStore(read_conn)
+                history = await read_store.get_ticket_history(ticket.ticket_id)
+
+            assert history is not None
+            assert round(history.cost_usd, 8) == 0.00002625
+
+            second = TicketResolution(
+                answer="re-resolved", handled_by="billing", handoffs=[], cost_usd=0.0000525
+            )
+            await store.save_resolution(ticket, second)
+            history = await store.get_ticket_history(ticket.ticket_id)
+
+            assert history is not None
+            assert round(history.cost_usd, 8) == 0.0000525
+        finally:
+            async with write_conn.cursor() as cur:
+                await cur.execute(
+                    "DELETE FROM ticket_handoffs WHERE ticket_id = %s", (ticket.ticket_id,)
+                )
+                await cur.execute("DELETE FROM tickets WHERE ticket_id = %s", (ticket.ticket_id,))
+            await write_conn.commit()
+
+
 async def test_a_missing_ticket_id_returns_none():
     async with await psycopg.AsyncConnection.connect(os.environ["DATABASE_URL"]) as conn:
         await run_migrations(conn, _MIGRATIONS_DIR)

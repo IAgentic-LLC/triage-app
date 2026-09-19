@@ -10,6 +10,7 @@ guarantee costs nothing extra here, it's what a fresh loop already
 does by construction.
 """
 
+from reliable_agents_labs.cost import TaskCostTracker
 from reliable_agents_labs.models import ModelClient
 
 from triage_app.handoff import HandoffRecord, HandoffRequested
@@ -35,10 +36,17 @@ class HandoffLoopDetected(RuntimeError):
 
 
 class TicketResolution:
-    def __init__(self, answer: str, handled_by: TicketCategory, handoffs: list[HandoffRecord]):
+    def __init__(
+        self,
+        answer: str,
+        handled_by: TicketCategory,
+        handoffs: list[HandoffRecord],
+        cost_usd: float = 0.0,
+    ):
         self.answer = answer
         self.handled_by = handled_by
         self.handoffs = handoffs
+        self.cost_usd = cost_usd
 
 
 async def route_ticket(
@@ -48,6 +56,11 @@ async def route_ticket(
     visited: list[TicketCategory] = []
     handoffs: list[HandoffRecord] = []
     context_note: str | None = None
+    # Chapter 35: one tracker for the whole ticket, spanning every
+    # specialist a handoff sends it to, not just whichever one finally
+    # resolves it. A ticket that hands off twice before resolving spent
+    # real money on the two specialists that gave up on it too.
+    cost_tracker = TaskCostTracker()
 
     for _ in range(max_handoffs + 1):
         if current_category in visited:
@@ -58,7 +71,9 @@ async def route_ticket(
         visited.append(current_category)
         specialist = _SPECIALISTS[current_category]
         try:
-            answer = await specialist(ticket, client=client, context_note=context_note)
+            answer = await specialist(
+                ticket, client=client, context_note=context_note, cost_tracker=cost_tracker
+            )
         except HandoffRequested as handoff:
             handoffs.append(
                 HandoffRecord(
@@ -70,7 +85,12 @@ async def route_ticket(
             context_note = handoff.reason
             current_category = handoff.target_category
             continue
-        return TicketResolution(answer=answer, handled_by=current_category, handoffs=handoffs)
+        return TicketResolution(
+            answer=answer,
+            handled_by=current_category,
+            handoffs=handoffs,
+            cost_usd=cost_tracker.total_cost,
+        )
 
     raise HandoffLoopDetected(
         f"ticket {ticket.ticket_id!r} exceeded {max_handoffs} handoffs without resolving"

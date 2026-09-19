@@ -29,6 +29,10 @@ class TicketHistory(BaseModel):
     # `freeze_account`, and the rest, durably recorded and queryable
     # days later, not just readable by a test immediately after a run.
     actions: list[dict] = []
+    # Chapter 35: the real dollar cost of every specialist this ticket
+    # actually touched, handoffs included, not just whichever one
+    # finally resolved it.
+    cost_usd: float = 0.0
 
 
 async def save_resolution(
@@ -40,10 +44,11 @@ async def save_resolution(
     async with conn.cursor() as cur:
         await cur.execute(
             "INSERT INTO tickets (ticket_id, customer_id, reported_category, "
-            "handled_by, subject, body, answer) VALUES (%s, %s, %s, %s, %s, %s, %s) "
+            "handled_by, subject, body, answer, cost_usd) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
             "ON CONFLICT (ticket_id) DO UPDATE SET "
             "handled_by = EXCLUDED.handled_by, answer = EXCLUDED.answer, "
-            "resolved_at = now()",
+            "cost_usd = EXCLUDED.cost_usd, resolved_at = now()",
             (
                 ticket.ticket_id,
                 ticket.customer_id,
@@ -52,6 +57,7 @@ async def save_resolution(
                 ticket.subject,
                 ticket.body,
                 resolution.answer,
+                resolution.cost_usd,
             ),
         )
         for handoff in resolution.handoffs:
@@ -73,7 +79,7 @@ async def get_ticket_history(
 ) -> TicketHistory | None:
     async with conn.cursor() as cur:
         await cur.execute(
-            "SELECT handled_by, answer FROM tickets WHERE ticket_id = %s", (ticket_id,)
+            "SELECT handled_by, answer, cost_usd FROM tickets WHERE ticket_id = %s", (ticket_id,)
         )
         ticket_row = await cur.fetchone()
         if ticket_row is None:
@@ -101,7 +107,19 @@ async def get_ticket_history(
             for row in handoff_rows
         ],
         actions=[row[0] for row in action_rows],
+        cost_usd=ticket_row[2],
     )
+
+
+async def total_usage(conn: psycopg.AsyncConnection) -> tuple[float, int]:
+    """Chapter 35: the same shape as `pkgintel-app`'s own `/v1/usage`
+    since chapter 15, a real `SUM` over every resolved ticket's own
+    real cost, not an in-memory total that a restart would lose.
+    """
+    async with conn.cursor() as cur:
+        await cur.execute("SELECT COALESCE(SUM(cost_usd), 0), COUNT(*) FROM tickets")
+        row = await cur.fetchone()
+    return (row[0], row[1])
 
 
 class TicketStore(Protocol):
@@ -118,6 +136,7 @@ class TicketStore(Protocol):
         self, ticket: Ticket, resolution: TicketResolution, actions: list[dict] | None = None
     ) -> None: ...
     async def get_ticket_history(self, ticket_id: str) -> TicketHistory | None: ...
+    async def total_usage(self) -> tuple[float, int]: ...
 
 
 class PostgresTicketStore:
@@ -131,3 +150,6 @@ class PostgresTicketStore:
 
     async def get_ticket_history(self, ticket_id: str) -> TicketHistory | None:
         return await get_ticket_history(self._conn, ticket_id)
+
+    async def total_usage(self) -> tuple[float, int]:
+        return await total_usage(self._conn)
