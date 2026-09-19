@@ -11,11 +11,17 @@ from reliable_agents_labs.models import ModelClient
 from triage_app.store import TicketStore
 from triage_app.supervisor import TicketResolution, route_ticket
 from triage_app.tickets import Ticket
+from triage_app.tools import ACTIONS_TAKEN
 
 
 async def handle_incoming_ticket(
     ticket: Ticket, store: TicketStore, client: ModelClient | None = None
 ) -> TicketResolution:
     resolution = await route_ticket(ticket, client=client)
-    await store.save_resolution(ticket, resolution)
+    # Chapter 27: captured right here, per request, before this specific
+    # ticket's own context-local list could ever be touched by anything
+    # else, real refunds and freezes now get a durable row, not just an
+    # in-memory list a test happens to read before the process exits.
+    actions = list(ACTIONS_TAKEN)
+    await store.save_resolution(ticket, resolution, actions)
     return resolution

@@ -8,6 +8,7 @@ real customer's account, regardless of which category a given ticket
 actually belongs to.
 """
 
+import contextvars
 import json
 
 _INVOICES = {
@@ -24,7 +25,48 @@ _RUNBOOKS = {
 # A real, growing record of every action a tool actually took, not
 # just what a test asserts happened. This chapter's whole live proof
 # reads this list afterward.
-ACTIONS_TAKEN: list[dict] = []
+#
+# Chapter 27: a plain module-level list here was fine for every test
+# in this book so far, one ticket processed at a time, an explicit
+# `.clear()` before each. It is not safe for real concurrent traffic:
+# two tickets processed at once would interleave into the same list,
+# corrupting the one record this product has of what a specialist
+# actually did. `contextvars.ContextVar` gives every concurrent asyncio
+# task, and FastAPI hands each request its own task, an isolated copy,
+# with the exact same `ACTIONS_TAKEN.clear()` / `== [...]` interface
+# every prior chapter's tests already rely on, unchanged.
+_actions_var: contextvars.ContextVar[list[dict]] = contextvars.ContextVar("actions_taken")
+
+
+class _ActionsTaken:
+    def _current(self) -> list[dict]:
+        try:
+            return _actions_var.get()
+        except LookupError:
+            fresh: list[dict] = []
+            _actions_var.set(fresh)
+            return fresh
+
+    def clear(self) -> None:
+        self._current().clear()
+
+    def append(self, item: dict) -> None:
+        self._current().append(item)
+
+    def __iter__(self):
+        return iter(self._current())
+
+    def __len__(self) -> int:
+        return len(self._current())
+
+    def __eq__(self, other: object) -> bool:
+        return self._current() == other
+
+    def __repr__(self) -> str:
+        return repr(self._current())
+
+
+ACTIONS_TAKEN = _ActionsTaken()
 
 
 def _record(action: str, **kwargs) -> None:

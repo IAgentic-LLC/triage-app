@@ -78,3 +78,52 @@ async def test_a_missing_ticket_id_returns_none():
         await run_migrations(conn, _MIGRATIONS_DIR)
         store = PostgresTicketStore(conn)
         assert await store.get_ticket_history("no-such-ticket") is None
+
+
+async def test_real_actions_taken_survive_a_fresh_connection_as_a_first_class_record():
+    """Chapter 27: `ACTIONS_TAKEN` only ever lived in memory until now.
+    A real refund or account freeze needs to be queryable days later,
+    not just readable by a test immediately after the call that took
+    the action returns.
+    """
+    ticket = Ticket(
+        ticket_id="itest-ticket-002",
+        customer_id="itest-cust-2",
+        category="billing",
+        subject="itest subject",
+        body="itest body",
+    )
+    async with await psycopg.AsyncConnection.connect(os.environ["DATABASE_URL"]) as write_conn:
+        await run_migrations(write_conn, _MIGRATIONS_DIR)
+        store = PostgresTicketStore(write_conn)
+        try:
+            resolution = TicketResolution(
+                answer="refund issued", handled_by="billing", handoffs=[]
+            )
+            actions = [
+                {"action": "look_up_invoice", "customer_id": "itest-cust-2"},
+                {"action": "issue_refund", "customer_id": "itest-cust-2", "amount_usd": 42.0},
+            ]
+            await store.save_resolution(ticket, resolution, actions)
+
+            async with await psycopg.AsyncConnection.connect(
+                os.environ["DATABASE_URL"]
+            ) as read_conn:
+                read_store = PostgresTicketStore(read_conn)
+                history = await read_store.get_ticket_history(ticket.ticket_id)
+
+            assert history is not None
+            assert len(history.actions) == 2
+            assert history.actions[0]["action"] == "look_up_invoice"
+            assert history.actions[1]["action"] == "issue_refund"
+            assert history.actions[1]["amount_usd"] == 42.0
+        finally:
+            async with write_conn.cursor() as cur:
+                await cur.execute(
+                    "DELETE FROM agent_actions WHERE ticket_id = %s", (ticket.ticket_id,)
+                )
+                await cur.execute(
+                    "DELETE FROM ticket_handoffs WHERE ticket_id = %s", (ticket.ticket_id,)
+                )
+                await cur.execute("DELETE FROM tickets WHERE ticket_id = %s", (ticket.ticket_id,))
+            await write_conn.commit()

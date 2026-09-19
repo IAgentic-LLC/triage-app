@@ -19,12 +19,15 @@ class InMemoryTicketStore:
     def __init__(self) -> None:
         self._history: dict[str, TicketHistory] = {}
 
-    async def save_resolution(self, ticket: Ticket, resolution: TicketResolution) -> None:
+    async def save_resolution(
+        self, ticket: Ticket, resolution: TicketResolution, actions: list[dict] | None = None
+    ) -> None:
         self._history[ticket.ticket_id] = TicketHistory(
             ticket_id=ticket.ticket_id,
             handled_by=resolution.handled_by,
             answer=resolution.answer,
             handoffs=list(resolution.handoffs),
+            actions=list(actions or []),
         )
 
     async def get_ticket_history(self, ticket_id: str) -> TicketHistory | None:

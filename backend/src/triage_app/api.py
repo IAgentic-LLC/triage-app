@@ -29,6 +29,7 @@ from triage_app.intake import handle_incoming_ticket
 from triage_app.store import PostgresTicketStore, TicketStore
 from triage_app.supervisor import HandoffLoopDetected
 from triage_app.tickets import Ticket, TicketCategory
+from triage_app.tools import ACTIONS_TAKEN
 
 load_dotenv()
 
@@ -61,6 +62,7 @@ class ResolutionResponse(BaseModel):
     handled_by: TicketCategory
     answer: str
     handoffs: list[HandoffRecord]
+    actions: list[dict] = []
 
 
 class ProblemDetail(BaseModel):
@@ -138,6 +140,7 @@ async def submit_ticket(
         handled_by=resolution.handled_by,
         answer=resolution.answer,
         handoffs=resolution.handoffs,
+        actions=list(ACTIONS_TAKEN),
     )
 
 
@@ -155,4 +158,5 @@ async def get_ticket(
         handled_by=history.handled_by,
         answer=history.answer,
         handoffs=history.handoffs,
+        actions=history.actions,
     )
