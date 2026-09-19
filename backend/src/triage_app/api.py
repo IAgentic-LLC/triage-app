@@ -20,6 +20,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from reliable_agents_labs.agent_loop import ToolLoopDidNotConverge
 from reliable_agents_labs.models import ModelClient
 
 from triage_app.auth import Principal, register_auth_exception_handlers, verify_token
@@ -124,6 +125,13 @@ async def submit_ticket(
     try:
         resolution = await handle_incoming_ticket(ticket, store, client=model_client)
     except HandoffLoopDetected as exc:
+        raise RoutingFailedError(detail=str(exc)) from exc
+    except ToolLoopDidNotConverge as exc:
+        # A specialist that never converges is not a bug to hide behind
+        # a bare 500: it's the same real, structural signal chapter 18's
+        # own exception already names, surfaced here as a typed error a
+        # caller can act on (retry, or route to a human), not a stack
+        # trace a browser has no business seeing.
         raise RoutingFailedError(detail=str(exc)) from exc
     return ResolutionResponse(
         ticket_id=ticket.ticket_id,
