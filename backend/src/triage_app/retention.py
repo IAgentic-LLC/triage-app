@@ -47,9 +47,7 @@ async def erase_customer_data(conn: psycopg.AsyncConnection, customer_id: str) -
     obligations require.
     """
     async with conn.cursor() as cur:
-        await cur.execute(
-            "SELECT ticket_id FROM tickets WHERE customer_id = %s", (customer_id,)
-        )
+        await cur.execute("SELECT ticket_id FROM tickets WHERE customer_id = %s", (customer_id,))
         ticket_ids = [row[0] for row in await cur.fetchall()]
         if not ticket_ids:
             return 0

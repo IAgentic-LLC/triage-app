@@ -74,9 +74,7 @@ async def save_resolution(
     await conn.commit()
 
 
-async def get_ticket_history(
-    conn: psycopg.AsyncConnection, ticket_id: str
-) -> TicketHistory | None:
+async def get_ticket_history(conn: psycopg.AsyncConnection, ticket_id: str) -> TicketHistory | None:
     async with conn.cursor() as cur:
         await cur.execute(
             "SELECT handled_by, answer, cost_usd FROM tickets WHERE ticket_id = %s", (ticket_id,)

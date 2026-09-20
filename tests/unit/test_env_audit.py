@@ -10,7 +10,7 @@ from triage_app.env_audit import documented_vars, find_env_vars, undocumented_va
 def test_find_env_vars_catches_both_bracket_and_get_forms(tmp_path):
     source = tmp_path / "example.py"
     source.write_text(
-        'import os\n'
+        "import os\n"
         'DATABASE_URL = os.environ["DATABASE_URL"]\n'
         'FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "default")\n'
     )

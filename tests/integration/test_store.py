@@ -145,9 +145,7 @@ async def test_real_actions_taken_survive_a_fresh_connection_as_a_first_class_re
         await run_migrations(write_conn, _MIGRATIONS_DIR)
         store = PostgresTicketStore(write_conn)
         try:
-            resolution = TicketResolution(
-                answer="refund issued", handled_by="billing", handoffs=[]
-            )
+            resolution = TicketResolution(answer="refund issued", handled_by="billing", handoffs=[])
             actions = [
                 {"action": "look_up_invoice", "customer_id": "itest-cust-2"},
                 {"action": "issue_refund", "customer_id": "itest-cust-2", "amount_usd": 42.0},

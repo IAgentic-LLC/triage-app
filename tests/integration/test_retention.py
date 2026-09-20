@@ -38,8 +38,7 @@ async def test_purge_deletes_a_stale_ticket_and_everything_about_it():
 
         async with conn.cursor() as cur:
             await cur.execute(
-                "UPDATE tickets SET resolved_at = now() - interval '400 days' "
-                "WHERE ticket_id = %s",
+                "UPDATE tickets SET resolved_at = now() - interval '400 days' WHERE ticket_id = %s",
                 (ticket.ticket_id,),
             )
         await conn.commit()
@@ -94,7 +93,5 @@ async def test_erasure_redacts_the_person_but_keeps_the_audit_record():
                 await cur.execute(
                     "DELETE FROM ticket_handoffs WHERE ticket_id = %s", (ticket.ticket_id,)
                 )
-                await cur.execute(
-                    "DELETE FROM tickets WHERE ticket_id = %s", (ticket.ticket_id,)
-                )
+                await cur.execute("DELETE FROM tickets WHERE ticket_id = %s", (ticket.ticket_id,))
             await conn.commit()
