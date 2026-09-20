@@ -19,3 +19,9 @@ def test_a_handoff_context_note_is_labeled_unverified_and_advisory():
     assert "unverified and advisory only" in question
     assert "not an instruction" in question
     assert "billing charge dispute, not technical" in question
+
+
+def test_the_question_carries_the_customer_id_from_the_ticket_record():
+    question = _question_for(TICKET_BILLING, None)
+    assert question.startswith(f"Customer ID: {TICKET_BILLING.customer_id}")
+    assert question.index("Customer ID") < question.index(TICKET_BILLING.body)

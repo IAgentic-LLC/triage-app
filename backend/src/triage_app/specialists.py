@@ -53,7 +53,9 @@ def _tool_fns_for(tools: list[dict]) -> dict:
 
 
 def _question_for(ticket: Ticket, context_note: str | None) -> str:
-    question = f"Subject: {ticket.subject}\n\n{ticket.body}"
+    # The customer id comes from the ticket record, not from the body, so the
+    # billing tools can be called without asking the customer for it.
+    question = f"Customer ID: {ticket.customer_id}\n\nSubject: {ticket.subject}\n\n{ticket.body}"
     if context_note:
         # Chapter 25: this note is model-generated text from a specialist
         # whose own input (the ticket body) is already untrusted. Labeling
