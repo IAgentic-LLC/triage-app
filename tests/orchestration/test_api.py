@@ -65,18 +65,25 @@ def _text_result(text: str, tool_calls: list[ToolCall] | None = None) -> ModelRe
 
 def test_missing_token_is_rejected(monkeypatch):
     _override_jwks(monkeypatch)
+    # The store dependency resolves before the token check, so give it an
+    # in-memory store: this test is about the token, and needs no database.
+    store = InMemoryTicketStore()
+    app.dependency_overrides[get_ticket_store] = lambda: store
     client = TestClient(app)
-    response = client.post(
-        "/v1/tickets",
-        json={
-            "ticket_id": "TCK-2001",
-            "customer_id": "cust-1",
-            "category": "billing",
-            "subject": "s",
-            "body": "b",
-        },
-    )
-    assert response.status_code in (401, 403)
+    try:
+        response = client.post(
+            "/v1/tickets",
+            json={
+                "ticket_id": "TCK-2001",
+                "customer_id": "cust-1",
+                "category": "billing",
+                "subject": "s",
+                "body": "b",
+            },
+        )
+        assert response.status_code in (401, 403)
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_a_submitted_ticket_is_routed_and_persisted(monkeypatch):
